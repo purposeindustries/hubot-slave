@@ -23,7 +23,9 @@ client.on('connect', function () {
     'device/' + me.toLowerCase() + '/pause',
     'device/colabs/pause',
     'device/' + me.toLowerCase() + '/next',
-    'device/colabs/next'
+    'device/colabs/next',
+    'device/' + me.toLowerCase() + '/clear',
+    'device/colabs/clear'
   ]);
 });
 
@@ -55,6 +57,11 @@ client.on('message', function (topic, buff) {
     console.log('next');
     return next();
   }
+
+  if (~topic.indexOf('clear')) {
+    console.log('clear');
+    return clear();
+  }
 });
 
 function play(link) {
@@ -75,6 +82,10 @@ function next() {
   mopidy.playback.next();
 }
 
+function clear() {
+  mopidy.tracklist
+    .clear();
+}
 function playSC(link) {
   request({
     url: 'https://api.soundcloud.com:443/resolve.json',
