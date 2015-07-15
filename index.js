@@ -2,31 +2,34 @@ var me = (process.env.MY_NAME || require('sillyname')()); //.replace(/\s/gm, '-'
 console.log('me is %s', me);
 var mqtt    = require('mqtt');
 var spawn = require('child_process').spawn;
-var client  = mqtt.connect(process.env.HUBOT_URL || 'ws://localhost:8080', {
-  deviceName: me,
-  room: process.env.OFFICE || 'colabs'
-});
+var officeRoom = process.env.OFFICE_ROOM || 'colabs';
+var client  = mqtt.connect(process.env.HUBOT_URL || 'ws://localhost:8080/master');
 var Mopidy = require('mopidy');
+var noop = function() {};
 var mopidy = new Mopidy({
-  webSocketUrl: process.env.MOPIDY_URL || 'ws://localhost:6680/mopidy/ws/'
+  webSocketUrl: process.env.MOPIDY_URL || 'ws://localhost:6680/mopidy/ws/',
+  callingConvention: 'by-position-only',
+  console: {
+    log: noop,
+    warn: noop,
+    error: noop
+  }
 });
 var request = require('request');
 client.on('connect', function () {
   var data = JSON.stringify({
     name: me,
-    room: 'colabs'
+    officeRoom: officeRoom
   });
   client.publish('identify', data);
-  client.subscribe([
-    'device/' + me.toLowerCase() + '/play',
-    'office/colabs/play',
-    'device/' + me.toLowerCase() + '/pause',
-    'device/colabs/pause',
-    'device/' + me.toLowerCase() + '/next',
-    'device/colabs/next',
-    'device/' + me.toLowerCase() + '/clear',
-    'device/colabs/clear'
-  ]);
+  var events = ['play', 'pause', 'next', 'clear'];
+
+  events.forEach(function(evName) {
+    client.subscribe([
+      'device/' + me.toLowerCase() + '/' + evName,
+      'office-room/' + officeRoom + '/' + evName
+    ]);
+  });
 });
 
 client.on('message', function (topic, buff) {
