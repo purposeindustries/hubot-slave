@@ -1,9 +1,9 @@
 var me = (process.env.MY_NAME || require('sillyname')()); //.replace(/\s/gm, '-');
 console.log('me is %s', me);
-var mqtt    = require('mqtt');
-var spawn = require('child_process').spawn;
+var mqtt = require('mqtt');
+var say = require('say');
 var officeRoom = process.env.OFFICE_ROOM || 'colabs';
-var client  = mqtt.connect(process.env.HUBOT_URL || 'ws://localhost:8080/master');
+var client = mqtt.connect(process.env.HUBOT_URL || 'ws://localhost:8080/master');
 var Mopidy = require('mopidy');
 var noop = function() {};
 var mopidy = new Mopidy({
@@ -22,7 +22,7 @@ client.on('connect', function () {
     officeRoom: officeRoom
   });
   client.publish('identify', data);
-  var events = ['play', 'pause', 'next', 'clear'];
+  var events = ['play', 'pause', 'next', 'clear', 'say'];
 
   events.forEach(function(evName) {
     client.subscribe([
@@ -64,6 +64,11 @@ client.on('message', function (topic, buff) {
   if (~topic.indexOf('clear')) {
     console.log('clear');
     return clear();
+  }
+
+  if (~topic.indexOf('say')) {
+    console.log('say');
+    return say.speak(null, message.text);
   }
 });
 
