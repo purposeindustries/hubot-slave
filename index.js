@@ -1,10 +1,14 @@
 var me = (process.env.MY_NAME || require('sillyname')()); //.replace(/\s/gm, '-');
 console.log('me is %s', me);
 var mqtt = require('mqtt');
-var say = require('say');
+//var say = require('say');
+var path = require('path');
+var fs = require('fs');
+var tmpdir = require('osenv').tmpdir;
 var officeRoom = process.env.OFFICE_ROOM || 'colabs';
 var client = mqtt.connect(process.env.HUBOT_URL || 'ws://localhost:8080/master');
 var Mopidy = require('mopidy');
+var cld = require('cld');
 var noop = function() {};
 var mopidy = new Mopidy({
   webSocketUrl: process.env.MOPIDY_URL || 'ws://localhost:6680/mopidy/ws/',
@@ -68,18 +72,22 @@ client.on('message', function (topic, buff) {
 
   if (~topic.indexOf('say')) {
     console.log('say');
-    return say.speak(null, message.text);
+    return say(message.text);
   }
 });
 
 function play(link) {
-  return mopidy.tracklist.add(
-    null,
-    0,
-    link
-  ).done(function(data) {
-    mopidy.playback.play();
-  });
+  return mopidy.tracklist.setSingle(true)
+    .done(function() {
+      mopidy.tracklist
+        .add(
+          null,
+          0,
+          link
+        ).done(function(data) {
+          mopidy.playback.play();
+        });
+    });
 }
 
 function pause() {
@@ -106,5 +114,39 @@ function playSC(link) {
     if (body && body.id) {
       play('soundcloud:song.' + body.id);
     }
+  });
+}
+
+function say(what) {
+  cld.detect(what, function(err, detection) {
+    if (err) {
+      console.error(err);
+    }
+    var lng = detection ? detection.languages[0].code : 'en';
+    console.log('detection', detection);
+    var fileName = path.join(tmpdir(), Math.random().toString().slice(2, 12) + '.wav');
+    console.log('fileanem=', fileName);
+    request({
+      url: 'http://translate.google.com/translate_tts',
+      qs: {
+        tl: lng,
+        q: what
+      },
+      headers: {
+        'User-Agent': 'Mozilla/5.0'
+      },
+      encoding: null
+    }, function(err, resp, body) {
+      console.log(err, resp.headers, resp.statusCode);
+    })
+      .on('error', function(err) {
+        console.error(err);
+      })
+      .on('end', function() {
+        console.log('play', 'file://' + fileName)
+        play('file://' + fileName);
+      })
+      .pipe(fs.createWriteStream(fileName));
+
   });
 }
