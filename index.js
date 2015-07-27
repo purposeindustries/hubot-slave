@@ -72,7 +72,7 @@ client.on('message', function (topic, buff) {
 
   if (~topic.indexOf('say')) {
     console.log('say');
-    return say(message.text);
+    return say(message.text, message.lang);
   }
 });
 
@@ -117,36 +117,41 @@ function playSC(link) {
   });
 }
 
-function say(what) {
-  cld.detect(what, function(err, detection) {
-    if (err) {
-      console.error(err);
-    }
-    var lng = detection ? detection.languages[0].code : 'en';
-    console.log('detection', detection);
-    var fileName = path.join(tmpdir(), Math.random().toString().slice(2, 12) + '.wav');
-    console.log('fileanem=', fileName);
-    request({
-      url: 'http://translate.google.com/translate_tts',
-      qs: {
-        tl: lng,
-        q: what
-      },
-      headers: {
-        'User-Agent': 'Mozilla/5.0'
-      },
-      encoding: null
-    }, function(err, resp, body) {
-      console.log(err, resp.headers, resp.statusCode);
-    })
-      .on('error', function(err) {
+function say(what, lang) {
+  if (lang == null) {
+    return cld.detect(what, function(err, detection) {
+      if (err) {
         console.error(err);
-      })
-      .on('end', function() {
-        console.log('play', 'file://' + fileName)
-        play('file://' + fileName);
-      })
-      .pipe(fs.createWriteStream(fileName));
+      }
+      var lng = detection ? detection.languages[0].code : 'en';
+      speak(what, lng);
+    });
+  }
+  speak(what, lang);
+}
 
-  });
+function speak(what, lng) {
+  var fileName = path.join(tmpdir(), Math.random().toString().slice(2, 12) + '.wav');
+  console.log('fileanem=', fileName);
+  request({
+    url: 'http://translate.google.com/translate_tts',
+    qs: {
+      tl: lng,
+      q: what
+    },
+    headers: {
+      'User-Agent': 'Mozilla/5.0'
+    },
+    encoding: null
+  }, function(err, resp, body) {
+    //console.log(err, resp.headers, resp.statusCode);
+  })
+    .on('error', function(err) {
+      console.error(err);
+    })
+    .on('end', function() {
+      console.log('play', 'file://' + fileName)
+      play('file://' + fileName);
+    })
+    .pipe(fs.createWriteStream(fileName));
 }
